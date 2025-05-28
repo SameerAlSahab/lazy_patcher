@@ -1,11 +1,10 @@
 #!/bin/bash
-# Lazy Framework & APK Patcher with Android 14 Support
-
-set -e
+# Lazy Framework Patcher with Android 14 Support
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APKTOOL_JAR="${SCRIPT_DIR}/external/apktool/apktool.jar"
+JARS=("framework" "services")
 
 # Color codes
 RED='\033[0;31m'
@@ -29,59 +28,45 @@ fi
 # Verify required files
 verify_paths() {
     echo -e "${GREEN}[+] Verifying paths...${NC}"
-
+    
     # Check apktool
     if [[ ! -f "$APKTOOL_JAR" ]]; then
         echo -e "${RED}ERROR: apktool.jar not found at: $APKTOOL_JAR${NC}"
         exit 1
     fi
     echo -e "${GREEN}✓ Found apktool.jar${NC}"
-
-    # Check for JARs/APKs to patch
-    mapfile -t ALL_JARS < <(find "$ROM_DIR/system/system/framework" -maxdepth 1 -type f -name "*.jar")
-    mapfile -t ALL_APKS < <(find "$ROM_DIR/system/system/app" -maxdepth 1 -type f -name "*.apk")
-    if [[ ${#ALL_JARS[@]} -eq 0 && ${#ALL_APKS[@]} -eq 0 ]]; then
-        echo -e "${RED}ERROR: No JAR or APK files found to patch.${NC}"
-        exit 1
-    fi
-
-    # Report found files and patches
-    for jarpath in "${ALL_JARS[@]}"; do
-        jar=$(basename "$jarpath" .jar)
+    
+    # Check jars
+    for jar in "${JARS[@]}"; do
+        jar_path="${ROM_DIR}/system/system/framework/${jar}.jar"
         patch_dir="${SCRIPT_DIR}/patches/${jar}"
-        echo -e "${GREEN}✓ Found $jar.jar in ROM${NC}"
+        
+        if [[ -f "$jar_path" ]]; then
+            echo -e "${GREEN}✓ Found ${jar}.jar in ROM${NC}"
+        fi
+        
         if [[ -d "$patch_dir" ]]; then
             patch_count=$(find "$patch_dir" -name '*.patch' | wc -l)
             echo -e "${GREEN}✓ Found ${patch_count} patches for ${jar}${NC}"
-        else
-            echo -e "${YELLOW}⚠️ No patches found for ${jar}${NC}"
-        fi
-    done
-    for apkpath in "${ALL_APKS[@]}"; do
-        apk=$(basename "$apkpath" .apk)
-        patch_dir="${SCRIPT_DIR}/patches/${apk}"
-        echo -e "${GREEN}✓ Found $apk.apk in ROM${NC}"
-        if [[ -d "$patch_dir" ]]; then
-            patch_count=$(find "$patch_dir" -name '*.patch' | wc -l)
-            echo -e "${GREEN}✓ Found ${patch_count} patches for ${apk}${NC}"
-        else
-            echo -e "${YELLOW}⚠️ No patches found for ${apk}${NC}"
         fi
     done
 }
 
+# Apply patches with validation
 apply_patches() {
     local work_dir="$1"
     local patch_dir="$2"
-    local file_name="$3"
-
-    echo -e "${GREEN}[+] Applying patches for ${file_name}...${NC}"
+    local jar_name="$3"
+    
+    echo -e "${GREEN}[+] Applying patches for ${jar_name}...${NC}"
     local applied=0
     local skipped=0
-
+    
     for patch in "${patch_dir}"/*.patch; do
         [[ -f "$patch" ]] || continue
+        
         patch_name=$(basename "$patch")
+        
         # Dry-run first
         if patch --dry-run -d "$work_dir" -p1 < "$patch" >/dev/null 2>&1; then
             echo -e "${GREEN}  ✅ Applying ${patch_name}...${NC}"
@@ -95,24 +80,31 @@ apply_patches() {
             ((skipped++))
         fi
     done
-
-    echo -e "${GREEN}✓ Applied ${applied} patches for ${file_name} (skipped ${skipped})${NC}"
+    
+    echo -e "${GREEN}✓ Applied ${applied} patches for ${jar_name} (skipped ${skipped})${NC}"
     return 0
 }
 
+# Process a single JAR
 process_jar() {
-    local jar_path="$1"
-    local jar_name=$(basename "$jar_path" .jar)
+    local jar_name="$1"
+    local jar_path="${ROM_DIR}/system/system/framework/${jar_name}.jar"
     local work_dir="${ROM_DIR}/system/system/framework/${jar_name}_work"
     local patch_dir="${SCRIPT_DIR}/patches/${jar_name}"
-
+    
+    # Skip if JAR doesn't exist
+    if [[ ! -f "$jar_path" ]]; then
+        echo -e "${YELLOW}⚠️ Skipping ${jar_name}.jar - not found in ROM${NC}"
+        return 0
+    fi
+    
     echo -e "\n${GREEN}===== Processing ${jar_name}.jar =====${NC}"
-
+    
     # Clean working directory
     echo -e "${YELLOW}[*] Cleaning workspace...${NC}"
     rm -rf "$work_dir"
     mkdir -p "$work_dir"
-
+    
     # Decompile JAR
     echo -e "${GREEN}[+] Decompiling ${jar_name}.jar...${NC}"
     java -jar "$APKTOOL_JAR" d \
@@ -181,96 +173,29 @@ process_jar() {
     return 0
 }
 
-process_apk() {
-    local apk_path="$1"
-    local apk_name=$(basename "$apk_path" .apk)
-    local work_dir="${ROM_DIR}/system/system/app/${apk_name}_work"
-    local patch_dir="${SCRIPT_DIR}/patches/${apk_name}"
-
-    echo -e "\n${GREEN}===== Processing ${apk_name}.apk =====${NC}"
-
-    # Clean working directory
-    echo -e "${YELLOW}[*] Cleaning workspace...${NC}"
-    rm -rf "$work_dir"
-    mkdir -p "$work_dir"
-
-    # Decompile APK
-    echo -e "${GREEN}[+] Decompiling ${apk_name}.apk...${NC}"
-    java -jar "$APKTOOL_JAR" d \
-        -f \
-        -b \
-        -o "$work_dir" \
-        "$apk_path" || {
-            echo -e "${RED}ERROR: Decompilation failed for ${apk_name}.apk${NC}"
-            return 1
-        }
-
-    # Apply patches if directory exists
-    if [[ -d "$patch_dir" ]]; then
-        apply_patches "$work_dir" "$patch_dir" "$apk_name" || return 1
-    else
-        echo -e "${YELLOW}⚠️ No patches found for ${apk_name}${NC}"
-    fi
-
-    # Rebuild APK
-    echo -e "${GREEN}[+] Rebuilding ${apk_name}.apk...${NC}"
-    java -jar "$APKTOOL_JAR" b \
-        -c \
-        -p res \
-        --use-aapt2 \
-        "$work_dir" \
-        -o "${work_dir}/dist/${apk_name}.apk" || {
-            echo -e "${RED}ERROR: Rebuild failed for ${apk_name}.apk${NC}"
-            return 1
-        }
-
-    # Replace original APK
-    echo -e "${GREEN}[+] Replacing original ${apk_name}.apk...${NC}"
-    mv "${work_dir}/dist/${apk_name}.apk" "$apk_path" || {
-        echo -e "${RED}ERROR: Failed to replace ${apk_name}.apk${NC}"
-        return 1
-    }
-
-    # Cleanup
-    rm -rf "$work_dir"
-    echo -e "${GREEN}[✓] ${apk_name}.apk successfully patched!${NC}"
-    return 0
-}
-
+# Main execution
 main() {
     verify_paths
-
-    local total=0
+    
     local success=0
-
-    # Patch all JARs
-    mapfile -t ALL_JARS < <(find "$ROM_DIR/system/system/framework" -maxdepth 1 -type f -name "*.jar")
-    for jar_path in "${ALL_JARS[@]}"; do
-        ((total++))
-        process_jar "$jar_path" && ((success++))
+    local total=0
+    
+    for jar in "${JARS[@]}"; do
+        if [[ -f "${ROM_DIR}/system/system/framework/${jar}.jar" ]]; then
+            ((total++))
+            process_jar "$jar" && ((success++))
+        fi
     done
-
-    # Patch all APKs
-    mapfile -t ALL_APKS < <(find "$ROM_DIR/system/system/app" -maxdepth 1 -type f -name "*.apk")
-    for apk_path in "${ALL_APKS[@]}"; do
-        ((total++))
-        process_apk "$apk_path" && ((success++))
-    done
-
-      if [[ $total -eq 0 ]]; then
-      echo -e "\n${YELLOW}[!] No patchable files were found!${NC}"
-      exit 0
-  elif [[ $success -eq $total ]]; then
-       echo -e "\n${GREEN}[✓] All files successfully patched!${NC}"
-       exit 0
-   elif [[ $success -gt 0 ]]; then
-       echo -e "\n${YELLOW}[!] $success/$total files patched successfully (some failed)${NC}"
-       exit 1
-   else
-       echo -e "\n${RED}[❌] No files were patched!${NC}"
-         exit 1
-     fi 
-
+    
+    if [[ $success -eq $total ]]; then
+        echo -e "\n${GREEN}[✓] All JARs successfully patched!${NC}"
+    elif [[ $success -gt 0 ]]; then
+        echo -e "\n${YELLOW}[!] $success/$total JARs patched successfully${NC}"
+    else
+        echo -e "\n${RED}[❌] No JARs were patched!${NC}"
+        exit 1
+    fi
 }
 
-main "$@"
+# Start processing
+main
