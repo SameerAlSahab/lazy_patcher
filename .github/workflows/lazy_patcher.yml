@@ -67,7 +67,7 @@ jobs:
           echo "Downloaded $(ls -lh rom/system/system/framework/services.jar)"
 
       - name: Make patcher executable
-        run: chmod +x scripts/framework_patcher.sh
+        run: chmod +x ishihara/scripts/framework_patcher.sh
 
       - name: Run patcher script
         run: |
