@@ -4,63 +4,77 @@ on:
   workflow_dispatch:
     inputs:
       framework_url:
-        description: 'Direct URL to framework.jar'
+        description: 'URL to framework.jar (optional)'
         required: false
-        type: string
       services_url:
-        description: 'Direct URL to services.jar'
+        description: 'URL to services.jar (optional)'
         required: false
-        type: string
-      core_url:
-        description: 'Direct URL to core.jar'
+        knoxsdk_url:
+        description: 'URL to knoxsdk jar (optional)'
         required: false
-        type: string
-      myapp_url:
-        description: 'Direct URL to myapp.apk'
-        required: false
-        type: string
+        
 
 env:
-  ARTIFACT_DIR: patched_files_${{ github.run_id }}
+  ARTIFACT_DIR: patched_jars_${{ github.run_id }}
+  BUILD_DATE: $(date -u +'%Y%m%d-%H%M')
 
 jobs:
+  validate:
+    name: Validate Input
+    runs-on: ubuntu-latest
+    outputs:
+      valid: ${{ steps.check-input.outputs.valid }}
+    steps:
+      - name: Check inputs
+        id: check-input
+        run: |
+          if [[ -z "${{ inputs.framework_url }}" && -z "${{ inputs.services_url }}" ]]; then
+            echo "::error::At least one JAR URL must be provided"
+            echo "valid=false" >> $GITHUB_OUTPUT
+          else
+            echo "valid=true" >> $GITHUB_OUTPUT
+          fi
+
   patch:
-    name: Patch Files
+    name: Patch JARs
+    needs: validate
+    if: ${{ needs.validate.outputs.valid == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        
       - name: Set up environment
         run: |
           sudo apt-get update
           sudo apt-get install -y unzip wget
+          echo "BUILD_DATE=$(date -u +'%Y%m%d-%H%M')" >> $GITHUB_ENV
 
       - name: Create directories
         run: |
           mkdir -p rom/system/system/framework
-          mkdir -p rom/system/system/app
           mkdir -p "${{ env.ARTIFACT_DIR }}"
 
       - name: Download framework.jar
         if: ${{ inputs.framework_url != '' }}
         run: |
-          wget "${{ inputs.framework_url }}" -O rom/system/system/framework/framework.jar
+          echo "Downloading framework.jar..."
+          wget -q --show-progress "${{ inputs.framework_url }}" -O rom/system/system/framework/framework.jar
+          echo "Downloaded $(ls -lh rom/system/system/framework/framework.jar)"
+          
+       - name: Download knoxsdk.jar
+        if: ${{ inputs.knoxsdk_url != '' }}
+        run: |
+          echo "Downloading framework.jar..."
+          wget -q --show-progress "${{ inputs.knoxsdk_url }}" -O rom/system/system/framework/knoxsdk.jar
+          echo "Downloaded $(ls -lh rom/system/system/framework/knoxsdk.jar)"
 
       - name: Download services.jar
         if: ${{ inputs.services_url != '' }}
         run: |
-          wget "${{ inputs.services_url }}" -O rom/system/system/framework/services.jar
-
-      - name: Download core.jar
-        if: ${{ inputs.core_url != '' }}
-        run: |
-          wget "${{ inputs.core_url }}" -O rom/system/system/framework/core.jar
-
-      - name: Download myapp.apk
-        if: ${{ inputs.myapp_url != '' }}
-        run: |
-          wget "${{ inputs.myapp_url }}" -O rom/system/system/app/myapp.apk
+          echo "Downloading services.jar..."
+          wget -q --show-progress "${{ inputs.services_url }}" -O rom/system/system/framework/services.jar
+          echo "Downloaded $(ls -lh rom/system/system/framework/services.jar)"
 
       - name: Make patcher executable
         run: chmod +x lazy_patcher.sh
@@ -72,14 +86,22 @@ jobs:
 
       - name: Collect artifacts
         run: |
-          find rom/system/system/framework -type f -name '*.jar' -exec cp {} "${{ env.ARTIFACT_DIR }}/" \;
-          find rom/system/system/app -type f -name '*.apk' -exec cp {} "${{ env.ARTIFACT_DIR }}/" \;
+          cd "${{ env.ARTIFACT_DIR }}"
+          
+          if [[ -f ../rom/system/system/framework/framework.jar ]]; then
+            cp ../rom/system/system/framework/framework.jar "framework_patched_${{ env.BUILD_DATE }}.jar"
+          fi
+          
+          if [[ -f ../rom/system/system/framework/services.jar ]]; then
+            cp ../rom/system/system/framework/services.jar "services_patched_${{ env.BUILD_DATE }}.jar"
+          fi
+          
           echo "Generated artifacts:"
-          ls -lh "${{ env.ARTIFACT_DIR }}"
+          ls -lh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: patched-files
-          path: ${{ env.ARTIFACT_DIR }}/*
+          name: patched-jars
+          path: ${{ env.ARTIFACT_DIR }}/*.jar
           retention-days: 7
