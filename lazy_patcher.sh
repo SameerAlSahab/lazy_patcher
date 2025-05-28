@@ -257,14 +257,18 @@ main() {
         process_apk "$apk_path" && ((success++))
     done
 
-    if [[ $success -eq $total && $total -ne 0 ]]; then
-        echo -e "\n${GREEN}[✓] All files successfully patched!${NC}"
-    elif [[ $success -gt 0 ]]; then
-        echo -e "\n${YELLOW}[!] $success/$total files patched successfully${NC}"
-    else
-        echo -e "\n${RED}[❌] No files were patched!${NC}"
-        exit 1
-    fi
-}
+  260|     if [[ $total -eq 0 ]]; then
+261|         echo -e "\n${YELLOW}[!] No patchable files were found!${NC}"
+262|         exit 0
+263|     elif [[ $success -eq $total ]]; then
+264|         echo -e "\n${GREEN}[✓] All files successfully patched!${NC}"
+265|         exit 0
+266|     elif [[ $success -gt 0 ]]; then
+267|         echo -e "\n${YELLOW}[!] $success/$total files patched successfully (some failed)${NC}"
+268|         exit 1
+269|     else
+270|         echo -e "\n${RED}[❌] No files were patched!${NC}"
+271|         exit 1
+272|     fi }
 
 main "$@"
