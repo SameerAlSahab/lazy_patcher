@@ -4,10 +4,10 @@
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Path Configuration (relative to project root)
-PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"  # Two levels up from scripts/
+# Path Configuration
+PROJECT_ROOT="$PROJECT_ROOT" 
 APKTOOL_JAR="$PROJECT_ROOT/external/apktool/apktool.jar"
-ROM_FOLDER="$1"  # Get ROM directory from first argument
+ROM_FOLDER="$1" 
 
 # Validate ROM directory
 if [[ -z "$ROM_FOLDER" || ! -d "$ROM_FOLDER" ]]; then
@@ -43,7 +43,7 @@ verify_paths() {
     # Check ROM jars
     for jar in "${JARS[@]}"; do
         jar_path="$ROM_FOLDER/system/system/framework/$jar.jar"
-        patches_dir="$PROJECT_ROOT/resources/patches/$jar.jar"
+        patches_dir="$PROJECT_ROOT/patches/$jar.jar"
         
         if [ ! -f "$jar_path" ]; then
             echo -e "${RED}ERROR: $jar.jar not found in ROM directory!${NC}"
