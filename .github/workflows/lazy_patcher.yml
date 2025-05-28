@@ -4,19 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       framework_url:
-        description: 'Direct URL to JAR/APKS'
+        description: 'Direct URL to framework.jar'
         required: false
         type: string
       services_url:
-        description: 'Direct URL to JAR/APKS (optional)'
+        description: 'Direct URL to services.jar'
         required: false
         type: string
       core_url:
-        description: 'Direct URL to any JAR/APKS (optional)'
+        description: 'Direct URL to core.jar'
         required: false
         type: string
       myapp_url:
-        description: 'Direct URL to custom JAR/APKS (optional)'
+        description: 'Direct URL to myapp.apk'
         required: false
         type: string
 
@@ -43,19 +43,21 @@ jobs:
           mkdir -p "${{ env.ARTIFACT_DIR }}"
 
       - name: Download framework.jar
+        if: ${{ inputs.framework_url != '' }}
         run: |
           wget "${{ inputs.framework_url }}" -O rom/system/system/framework/framework.jar
 
       - name: Download services.jar
+        if: ${{ inputs.services_url != '' }}
         run: |
           wget "${{ inputs.services_url }}" -O rom/system/system/framework/services.jar
 
-      - name: Download core.jar (optional)
+      - name: Download core.jar
         if: ${{ inputs.core_url != '' }}
         run: |
           wget "${{ inputs.core_url }}" -O rom/system/system/framework/core.jar
 
-      - name: Download myapp.apk (optional)
+      - name: Download myapp.apk
         if: ${{ inputs.myapp_url != '' }}
         run: |
           wget "${{ inputs.myapp_url }}" -O rom/system/system/app/myapp.apk
