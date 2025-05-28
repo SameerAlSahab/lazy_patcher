@@ -100,7 +100,7 @@ process_jar() {
     local jar_name="$1"
     local rom_jar="$ROM_FOLDER/system/system/framework/$jar_name.jar"
     local work_dir="$ROM_FOLDER/system/system/framework/${jar_name}edit"
-    local patches_dir="$PROJECT_ROOT/resources/patches/$jar_name.jar"
+    local patches_dir="$PROJECT_ROOT/patches/$jar_name.jar"
     
     echo -e "\n${GREEN}===== Processing $jar_name.jar =====${NC}"
     
