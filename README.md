@@ -6,7 +6,7 @@
 
 ## 🛠️ What is Lazy Framework Patcher?
 
-**Lazy Framework Patcher** is a professional, highly-automated solution for remotely patching Android firmware components—including `framework.jar`, `services.jar`, custom `.jar` files, and APKs. Designed for modders, developers, and advanced users, it leverages GitHub Actions to perform patching in the cloud, with robust patch validation and artifact management.
+**Lazy Framework Patcher** is a highly-automated solution for remotely patching Android firmware components—including `framework.jar`, `services.jar`, custom `.jar` files, and APKs. Designed for modders, developers, and advanced users, it leverages GitHub Actions to perform patching in the cloud, with robust patch validation and artifact management.
 
 ---
 
@@ -92,6 +92,8 @@ patches/
 
 > _Developed and maintained by_  
 > **Ishihara0Xn**
+>
+> Apktool by iBotPeaches
 
 - [GitHub: @Ishihara0Xn](https://github.com/Ishihara0Xn)
 - Script, workflow design, and patching logic by Ishihara0Xn.
