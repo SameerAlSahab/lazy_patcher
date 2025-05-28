@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lazy Framework Patcher 
+# Lazy Framework Patcher with Robust Android 14,15&&16 Support
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -116,14 +116,14 @@ process_jar() {
             return 1
         }
 
-    # Android 14/15 workaround (framework only)
+    # Android 14,15&&16 workaround (framework only)
     if [[ "$jar_name" == "framework" ]]; then
-        echo -e "${GREEN}[+] Checking for Android 14 resources...${NC}"
+        echo -e "${GREEN}[+] Checking for Android 14,15&&16 resources...${NC}"
         if unzip -l "$jar_path" | grep -q "debian.mime.types"; then
-            echo -e "${YELLOW}[*] Found Android 14 resources, extracting...${NC}"
+            echo -e "${YELLOW}[*] Found Android 14,15&&16 resources, extracting...${NC}"
             mkdir -p "${work_dir}/unknown"
             unzip -q "$jar_path" "res/*" -d "${work_dir}/unknown" || {
-                echo -e "${RED}ERROR: Failed to extract Android 14 resources${NC}"
+                echo -e "${RED}ERROR: Failed to extract Android 14,15&&16 resources${NC}"
                 return 1
             }
         fi
@@ -148,9 +148,9 @@ process_jar() {
             return 1
         }
 
-    # FIXED: Android 14/15/16 resource reintegration
+    # FIXED: Android 14,15&&16 resource reintegration
     if [[ "$jar_name" == "framework" && -d "${work_dir}/unknown" ]]; then
-        echo -e "${GREEN}[+] Reintegrating Android 14 resources...${NC}"
+        echo -e "${GREEN}[+] Reintegrating Android 14,15&&16 resources...${NC}"
         
         # Create temporary working directory
         TEMP_DIR="${work_dir}/temp_reintegration"
@@ -163,17 +163,23 @@ process_jar() {
         }
         
         # Create proper directory structure
-        mkdir -p "res"
-        cp -r "${work_dir}/unknown/res"/* "res/" || {
-            echo -e "${RED}ERROR: Failed to copy Android 14 resources${NC}"
-            return 1
-        }
+        if [[ -d "${work_dir}/unknown/res" ]]; then
+            mkdir -p "res"
+            cp -r "${work_dir}/unknown/res"/* "res/" || {
+                echo -e "${RED}ERROR: Failed to copy Android 14,15&&16 resources${NC}"
+                return 1
+            }
+        fi
         
-        # Add resources to JAR
-        zip -qr "${work_dir}/dist/${jar_name}.jar" . || {
-            echo -e "${RED}ERROR: Failed to add Android 14 resources${NC}"
-            return 1
-        }
+        # Add resources to JAR (only if they exist)
+        if [[ $(ls -A "$TEMP_DIR" 2>/dev/null) ]]; then
+            zip -qr "${work_dir}/dist/${jar_name}.jar" . || {
+                echo -e "${RED}ERROR: Failed to add Android 14,15&&16 resources${NC}"
+                return 1
+            }
+        else
+            echo -e "${YELLOW}⚠️ No Android 14,15&&16 resources found to reintegrate${NC}"
+        fi
         
         # Clean up
         cd - >/dev/null || true
@@ -204,7 +210,11 @@ main() {
     for jar in "${JARS[@]}"; do
         if [[ -f "${ROM_DIR}/system/system/framework/${jar}.jar" ]]; then
             ((total++))
-            process_jar "$jar" && ((success++))
+            process_jar "$jar" || {
+                echo -e "${YELLOW}⚠️ Partial success: Continuing with next JAR${NC}"
+                continue
+            }
+            ((success++))
         fi
     done
     
@@ -212,6 +222,7 @@ main() {
         echo -e "\n${GREEN}[✓] All JARs successfully patched!${NC}"
     elif [[ $success -gt 0 ]]; then
         echo -e "\n${YELLOW}[!] $success/$total JARs patched successfully${NC}"
+        exit 1  # Partial success is still considered an error
     else
         echo -e "\n${RED}[❌] No JARs were patched!${NC}"
         exit 1
