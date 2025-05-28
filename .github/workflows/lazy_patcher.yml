@@ -51,10 +51,11 @@ jobs:
           mkdir -p "${{ env.ARTIFACT_DIR }}"
 
       - name: Download provided files
+        
         run: |
           echo "${{ inputs.file_urls }}" > file_urls.txt
           while IFS= read -r url; do
-            [ -z "$url" ] && continue
+            [[ -z "$url" || "$url" =~ ^# ]] && continue
             fname=$(basename "$url")
             ext="${fname##*.}"
             if [[ "$ext" == "jar" ]]; then
@@ -67,7 +68,25 @@ jobs:
               echo "Skipping unsupported file: $fname"
               continue
             fi
+            echo "Downloading $url to $dest"
             wget -q --show-progress "$url" -O "$dest"
+            status=$?
+            if [[ $status -ne 0 ]]; then
+              echo "wget failed for $url (exit code $status). Trying curl..."
+              curl -L "$url" -o "$dest"
+              status=$?
+              if [[ $status -ne 0 ]]; then
+                echo "ERROR: Could not download $url"
+                rm -f "$dest"
+                continue
+              fi
+            fi
+            if file "$dest" | grep -qi 'HTML'; then
+              echo "ERROR: $url did not provide a valid file (received HTML error page)."
+              head -20 "$dest"
+              rm -f "$dest"
+              continue
+            fi
             echo "Downloaded $dest"
           done < file_urls.txt
 
