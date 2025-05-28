@@ -13,26 +13,8 @@ env:
   BUILD_DATE: ${{ github.run_id }}
 
 jobs:
-  validate:
-    name: Validate Input
-    runs-on: ubuntu-latest
-    outputs:
-      valid: ${{ steps.check-input.outputs.valid }}
-    steps:
-      - name: Check inputs
-        id: check-input
-        run: |
-          if [[ -z "${{ inputs.file_urls }}" ]]; then
-            echo "::error::At least one file URL must be provided"
-            echo "valid=false" >> $GITHUB_OUTPUT
-          else
-            echo "valid=true" >> $GITHUB_OUTPUT
-          fi
-
   patch:
     name: Patch Files
-    needs: validate
-    if: ${{ needs.validate.outputs.valid == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -42,7 +24,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y unzip wget
-          echo "BUILD_DATE=$(date -u +'%Y%m%d-%H%M')" >> $GITHUB_ENV
 
       - name: Create directories
         run: |
@@ -51,34 +32,34 @@ jobs:
           mkdir -p "${{ env.ARTIFACT_DIR }}"
 
       - name: Download provided files
+        run: |
+          echo "${{ inputs.file_urls }}" > file_urls.txt
+          while IFS= read -r url; do
+            # Skip blank and comment lines
+            [[ -z "$url" || "$url" =~ ^# ]] && continue
+            fname=$(basename "$url")
+            ext="${fname##*.}"
+            if [[ "$ext" == "jar" ]]; then
+              dest="rom/system/system/framework/$fname"
+              mkdir -p rom/system/system/framework
+            elif [[ "$ext" == "apk" ]]; then
+              dest="rom/system/system/app/$fname"
+              mkdir -p rom/system/system/app
+            else
+              echo "Skipping unsupported file: $fname"
+              continue
+            fi
+            echo "Downloading $url to $dest"
+            wget --no-verbose --show-progress "$url" -O "$dest"
+            status=$?
+            if [[ $status -ne 0 ]]; then
+              echo "ERROR: Failed to download $url (exit code $status)"
+              rm -f "$dest"
+              exit $status
+            fi
+            echo "Downloaded $dest"
+          done < file_urls.txt
 
-  run: |
-    echo "${{ inputs.file_urls }}" > file_urls.txt
-    while IFS= read -r url; do
-      [[ -z "$url" || "$url" =~ ^# ]] && continue
-      fname=$(basename "$url")
-      ext="${fname##*.}"
-      if [[ "$ext" == "jar" ]]; then
-        dest="rom/system/system/framework/$fname"
-        mkdir -p rom/system/system/framework
-      elif [[ "$ext" == "apk" ]]; then
-        dest="rom/system/system/app/$fname"
-        mkdir -p rom/system/system/app
-      else
-        echo "Skipping unsupported file: $fname"
-        continue
-      fi
-      echo "Downloading $url to $dest"
-      wget --no-verbose --show-progress "$url" -O "$dest"
-      status=$?
-      if [[ $status -ne 0 ]]; then
-        echo "ERROR: wget failed for $url (exit code $status)."
-        echo "Trying curl for debug..."
-        curl -Iv "$url"
-        exit $status
-      fi
-      echo "Downloaded $dest"
-    done < file_urls.txt
       - name: Make patcher executable
         run: chmod +x lazy_patcher.sh
 
