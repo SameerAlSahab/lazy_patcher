@@ -3,16 +3,14 @@ name: Lazy Framework Patcher
 on:
   workflow_dispatch:
     inputs:
-      framework_url:
-        description: 'URL to framework.jar (optional)'
-        required: false
-      services_url:
-        description: 'URL to services.jar (optional)'
-        required: false
+      file_urls:
+        description: 'Paste URLs for JAR/APK files (one per line, e.g., framework.jar, services.jar, core.jar, myapp.apk)'
+        required: true
+        type: string
 
 env:
-  ARTIFACT_DIR: patched_jars_${{ github.run_id }}
-  BUILD_DATE: $(date -u +'%Y%m%d-%H%M')
+  ARTIFACT_DIR: patched_files_${{ github.run_id }}
+  BUILD_DATE: ${{ github.run_id }}
 
 jobs:
   validate:
@@ -24,22 +22,22 @@ jobs:
       - name: Check inputs
         id: check-input
         run: |
-          if [[ -z "${{ inputs.framework_url }}" && -z "${{ inputs.services_url }}" ]]; then
-            echo "::error::At least one JAR URL must be provided"
+          if [[ -z "${{ inputs.file_urls }}" ]]; then
+            echo "::error::At least one file URL must be provided"
             echo "valid=false" >> $GITHUB_OUTPUT
           else
             echo "valid=true" >> $GITHUB_OUTPUT
           fi
 
   patch:
-    name: Patch JARs
+    name: Patch Files
     needs: validate
     if: ${{ needs.validate.outputs.valid == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Set up environment
         run: |
           sudo apt-get update
@@ -49,21 +47,29 @@ jobs:
       - name: Create directories
         run: |
           mkdir -p rom/system/system/framework
+          mkdir -p rom/system/system/app
           mkdir -p "${{ env.ARTIFACT_DIR }}"
 
-      - name: Download framework.jar
-        if: ${{ inputs.framework_url != '' }}
+      - name: Download provided files
         run: |
-          echo "Downloading framework.jar..."
-          wget -q --show-progress "${{ inputs.framework_url }}" -O rom/system/system/framework/framework.jar
-          echo "Downloaded $(ls -lh rom/system/system/framework/framework.jar)"
-
-      - name: Download services.jar
-        if: ${{ inputs.services_url != '' }}
-        run: |
-          echo "Downloading services.jar..."
-          wget -q --show-progress "${{ inputs.services_url }}" -O rom/system/system/framework/services.jar
-          echo "Downloaded $(ls -lh rom/system/system/framework/services.jar)"
+          echo "${{ inputs.file_urls }}" > file_urls.txt
+          while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            fname=$(basename "$url")
+            ext="${fname##*.}"
+            if [[ "$ext" == "jar" ]]; then
+              dest="rom/system/system/framework/$fname"
+              mkdir -p rom/system/system/framework
+            elif [[ "$ext" == "apk" ]]; then
+              dest="rom/system/system/app/$fname"
+              mkdir -p rom/system/system/app
+            else
+              echo "Skipping unsupported file: $fname"
+              continue
+            fi
+            wget -q --show-progress "$url" -O "$dest"
+            echo "Downloaded $dest"
+          done < file_urls.txt
 
       - name: Make patcher executable
         run: chmod +x lazy_patcher.sh
@@ -75,22 +81,14 @@ jobs:
 
       - name: Collect artifacts
         run: |
-          cd "${{ env.ARTIFACT_DIR }}"
-          
-          if [[ -f ../rom/system/system/framework/framework.jar ]]; then
-            cp ../rom/system/system/framework/framework.jar "framework_patched_${{ env.BUILD_DATE }}.jar"
-          fi
-          
-          if [[ -f ../rom/system/system/framework/services.jar ]]; then
-            cp ../rom/system/system/framework/services.jar "services_patched_${{ env.BUILD_DATE }}.jar"
-          fi
-          
+          find rom/system/system/framework -type f -name '*.jar' -exec cp {} "${{ env.ARTIFACT_DIR }}/" \;
+          find rom/system/system/app -type f -name '*.apk' -exec cp {} "${{ env.ARTIFACT_DIR }}/" \;
           echo "Generated artifacts:"
-          ls -lh
+          ls -lh "${{ env.ARTIFACT_DIR }}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: patched-jars
-          path: ${{ env.ARTIFACT_DIR }}/*.jar
+          name: patched-files
+          path: ${{ env.ARTIFACT_DIR }}/*
           retention-days: 7
