@@ -4,20 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       framework_url:
-        description: 'Direct URL to framework.jar'
-        required: true
+        description: 'Direct URL to JAR/APKS'
+        required: false
         type: string
       services_url:
-        description: 'Direct URL to services.jar'
-        required: true
+        description: 'Direct URL to JAR/APKS (optional)'
+        required: false
         type: string
       core_url:
-        description: 'Direct URL to any APK/jar (optional)'
-        required: true
+        description: 'Direct URL to any JAR/APKS (optional)'
+        required: false
         type: string
       myapp_url:
-        description: 'Direct URL to custom APK/jar (optional)'
-        required: true
+        description: 'Direct URL to custom JAR/APKS (optional)'
+        required: false
         type: string
 
 env:
