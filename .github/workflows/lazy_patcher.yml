@@ -71,7 +71,7 @@ jobs:
 
       - name: Run patcher script
         run: |
-          .lazy_patcher.sh rom
+          ./lazy_patcher.sh rom
           echo "Patcher completed successfully"
 
       - name: Collect patched artifacts
