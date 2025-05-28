@@ -128,7 +128,7 @@ process_jar() {
     java -jar "$APKTOOL_JAR" d \
         -api 34 \
         -f \  # Force overwrite existing directory
-        -b \
+        
         -o "$work_dir" \
         "$rom_jar" || {
             echo -e "${RED}ERROR: Decompilation failed for $jar_name.jar${NC}"
