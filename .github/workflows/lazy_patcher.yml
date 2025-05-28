@@ -71,7 +71,7 @@ jobs:
 
       - name: Run patcher script
         run: |
-          ./scripts/framework_patcher.sh rom
+          ./ishihara/scripts/framework_patcher.sh rom
           echo "Patcher completed successfully"
 
       - name: Collect patched artifacts
