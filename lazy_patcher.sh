@@ -43,7 +43,7 @@ verify_paths() {
     # Check ROM jars
     for jar in "${JARS[@]}"; do
         jar_path="$ROM_FOLDER/system/system/framework/$jar.jar"
-        patches_dir="$PROJECT_ROOT/resources/patches/$jar.jar"
+        patches_dir="$PROJECT_ROOT/patches/$jar.jar"
         
         if [ ! -f "$jar_path" ]; then
             echo -e "${YELLOW}WARNING: $jar.jar not found in ROM directory!${NC}"
