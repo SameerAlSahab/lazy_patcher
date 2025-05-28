@@ -1,80 +1,79 @@
-name: Lazy Patcher V1
+name: Lazy Framework Patcher
 
 on:
   workflow_dispatch:
     inputs:
-      framework_jar_url:
+      framework_url:
         description: 'URL to framework.jar (optional)'
         required: false
-      services_jar_url:
+      services_url:
         description: 'URL to services.jar (optional)'
         required: false
 
 env:
-  ARTIFACT_DIR: patched_jars_${{ github.run_id }}_${{ github.run_attempt }}
-  BUILD_DATE: $(date +'%Y%m%d-%H%M')
+  ARTIFACT_DIR: patched_jars_${{ github.run_id }}
+  BUILD_DATE: $(date -u +'%Y%m%d-%H%M')
 
 jobs:
-  validate-input:
-    name: Validate Inputs
+  validate:
+    name: Validate Input
     runs-on: ubuntu-latest
     outputs:
-      valid: ${{ steps.validation.outputs.valid }}
+      valid: ${{ steps.check-input.outputs.valid }}
     steps:
-      - name: Check Inputs
-        id: validation
+      - name: Check inputs
+        id: check-input
         run: |
-          if [[ -z "${{ inputs.framework_jar_url }}" && -z "${{ inputs.services_jar_url }}" ]]; then
-            echo "::error::At least one JAR URL must be provided (framework or services)"
+          if [[ -z "${{ inputs.framework_url }}" && -z "${{ inputs.services_url }}" ]]; then
+            echo "::error::At least one JAR URL must be provided"
             echo "valid=false" >> $GITHUB_OUTPUT
           else
             echo "valid=true" >> $GITHUB_OUTPUT
           fi
 
-  patch-jars:
-    name: Patch JAR Files
-    needs: validate-input
-    if: ${{ needs.validate-input.outputs.valid == 'true' }}
+  patch:
+    name: Patch JARs
+    needs: validate
+    if: ${{ needs.validate.outputs.valid == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Setup environment
+        
+      - name: Set up environment
         run: |
           sudo apt-get update
           sudo apt-get install -y unzip wget
+          echo "BUILD_DATE=$(date -u +'%Y%m%d-%H%M')" >> $GITHUB_ENV
 
-      - name: Create workspace
+      - name: Create directories
         run: |
           mkdir -p rom/system/system/framework
           mkdir -p "${{ env.ARTIFACT_DIR }}"
 
-      - name: Download framework.jar (if provided)
-        if: ${{ inputs.framework_jar_url != '' }}
+      - name: Download framework.jar
+        if: ${{ inputs.framework_url != '' }}
         run: |
-          echo "Downloading framework.jar from ${{ inputs.framework_jar_url }}"
-          wget -q --show-progress "${{ inputs.framework_jar_url }}" -O rom/system/system/framework/framework.jar
+          echo "Downloading framework.jar..."
+          wget -q --show-progress "${{ inputs.framework_url }}" -O rom/system/system/framework/framework.jar
           echo "Downloaded $(ls -lh rom/system/system/framework/framework.jar)"
 
-      - name: Download services.jar (if provided)
-        if: ${{ inputs.services_jar_url != '' }}
+      - name: Download services.jar
+        if: ${{ inputs.services_url != '' }}
         run: |
-          echo "Downloading services.jar from ${{ inputs.services_jar_url }}"
-          wget -q --show-progress "${{ inputs.services_jar_url }}" -O rom/system/system/framework/services.jar
+          echo "Downloading services.jar..."
+          wget -q --show-progress "${{ inputs.services_url }}" -O rom/system/system/framework/services.jar
           echo "Downloaded $(ls -lh rom/system/system/framework/services.jar)"
 
       - name: Make patcher executable
         run: chmod +x lazy_patcher.sh
 
-      - name: Run patcher script
+      - name: Run patcher
         run: |
           ./lazy_patcher.sh rom
           echo "Patcher completed successfully"
 
-      - name: Collect patched artifacts
+      - name: Collect artifacts
         run: |
           cd "${{ env.ARTIFACT_DIR }}"
           
@@ -86,7 +85,7 @@ jobs:
             cp ../rom/system/system/framework/services.jar "services_patched_${{ env.BUILD_DATE }}.jar"
           fi
           
-          echo "Artifacts:"
+          echo "Generated artifacts:"
           ls -lh
 
       - name: Upload artifacts
@@ -94,3 +93,4 @@ jobs:
         with:
           name: patched-jars
           path: ${{ env.ARTIFACT_DIR }}/*.jar
+          retention-days: 7
