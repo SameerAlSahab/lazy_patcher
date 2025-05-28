@@ -269,6 +269,8 @@ main() {
 269|     else
 270|         echo -e "\n${RED}[❌] No files were patched!${NC}"
 271|         exit 1
-272|     fi }
+272|     fi 
+
+}
 
 main "$@"
