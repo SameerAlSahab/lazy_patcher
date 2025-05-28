@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lazy Framework Patcher with Android 14 Support
+# Lazy Framework Patcher 
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -116,7 +116,7 @@ process_jar() {
             return 1
         }
 
-    # Android 14 workaround (framework only)
+    # Android 14/15 workaround (framework only)
     if [[ "$jar_name" == "framework" ]]; then
         echo -e "${GREEN}[+] Checking for Android 14 resources...${NC}"
         if unzip -l "$jar_path" | grep -q "debian.mime.types"; then
@@ -148,20 +148,41 @@ process_jar() {
             return 1
         }
 
-    # Reintegrate Android 14 resources (framework only)
+    # FIXED: Android 14/15/16 resource reintegration
     if [[ "$jar_name" == "framework" && -d "${work_dir}/unknown" ]]; then
         echo -e "${GREEN}[+] Reintegrating Android 14 resources...${NC}"
-        (
-            cd "${work_dir}/unknown"
-            zip -qr "${work_dir}/dist/${jar_name}.jar" . || {
-                echo -e "${RED}ERROR: Failed to add Android 14 resources${NC}"
-                return 1
-            }
-        )
+        
+        # Create temporary working directory
+        TEMP_DIR="${work_dir}/temp_reintegration"
+        mkdir -p "$TEMP_DIR"
+        
+        # Move to temporary directory
+        cd "$TEMP_DIR" || {
+            echo -e "${RED}ERROR: Failed to enter temporary directory${NC}"
+            return 1
+        }
+        
+        # Create proper directory structure
+        mkdir -p "res"
+        cp -r "${work_dir}/unknown/res"/* "res/" || {
+            echo -e "${RED}ERROR: Failed to copy Android 14 resources${NC}"
+            return 1
+        }
+        
+        # Add resources to JAR
+        zip -qr "${work_dir}/dist/${jar_name}.jar" . || {
+            echo -e "${RED}ERROR: Failed to add Android 14 resources${NC}"
+            return 1
+        }
+        
+        # Clean up
+        cd - >/dev/null || true
+        rm -rf "$TEMP_DIR"
     fi
 
     # Replace original JAR
     echo -e "${GREEN}[+] Replacing original ${jar_name}.jar...${NC}"
+    mkdir -p "$(dirname "$jar_path")"
     mv "${work_dir}/dist/${jar_name}.jar" "$jar_path" || {
         echo -e "${RED}ERROR: Failed to replace ${jar_name}.jar${NC}"
         return 1
