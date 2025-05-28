@@ -1,13 +1,13 @@
 #!/bin/bash
-
+# lazy_patcher.sh - Enhanced Version with Directory Handling Fix
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Path Configuration
-PROJECT_ROOT="$SCRIPT_DIR" 
-APKTOOL_JAR="$SCRIPT_DIR/external/apktool/apktool.jar"
-ROM_FOLDER="$1" 
+# Path Configuration (relative to project root)
+PROJECT_ROOT="$SCRIPT_DIR"  
+APKTOOL_JAR="$PROJECT_ROOT/external/apktool/apktool.jar"
+ROM_FOLDER="$1"  
 
 # Validate ROM directory
 if [[ -z "$ROM_FOLDER" || ! -d "$ROM_FOLDER" ]]; then
@@ -43,21 +43,21 @@ verify_paths() {
     # Check ROM jars
     for jar in "${JARS[@]}"; do
         jar_path="$ROM_FOLDER/system/system/framework/$jar.jar"
-        patches_dir="$PROJECT_ROOT/patches/$jar.jar"
+        patches_dir="$PROJECT_ROOT/resources/patches/$jar.jar"
         
         if [ ! -f "$jar_path" ]; then
-            echo -e "${RED}ERROR: $jar.jar not found in ROM directory!${NC}"
+            echo -e "${YELLOW}WARNING: $jar.jar not found in ROM directory!${NC}"
             echo -e "  ${YELLOW}Expected: $jar_path${NC}"
-            exit 1
+            continue
         fi
         
         if [ ! -d "$patches_dir" ]; then
-            echo -e "${RED}ERROR: Patches directory not found:${NC}"
+            echo -e "${YELLOW}WARNING: Patches directory not found:${NC}"
             echo -e "  ${YELLOW}$patches_dir${NC}"
-            exit 1
+            continue
         fi
         
-        echo -e "${GREEN}✓ Found $jar.jar and $(ls "$patches_dir"/*.patch | wc -l) patches${NC}"
+        echo -e "${GREEN}✓ Found $jar.jar and $(ls "$patches_dir"/*.patch 2>/dev/null | wc -w) patches${NC}"
     done
 }
 
@@ -72,6 +72,8 @@ apply_patches() {
     local skipped=0
     
     for patch in "$patches_dir"/*.patch; do
+        [[ -f "$patch" ]] || continue  # Skip if no patches
+        
         patch_name=$(basename "$patch")
         
         # First try dry-run
@@ -88,9 +90,10 @@ apply_patches() {
         fi
     done
     
-    echo -e "${GREEN}✓ Applied $applied/$((applied+skipped)) patches for $jar_name${NC}"
-    if [ $skipped -gt 0 ]; then
-        echo -e "${YELLOW}⚠️ Skipped $skipped patches for $jar_name${NC}"
+    if [[ $applied -eq 0 && $skipped -gt 0 ]]; then
+        echo -e "${YELLOW}⚠️ No patches applied for $jar_name (all skipped)${NC}"
+    else
+        echo -e "${GREEN}✓ Applied $applied/$((applied+skipped)) patches for $jar_name${NC}"
     fi
     return 0
 }
@@ -100,18 +103,31 @@ process_jar() {
     local jar_name="$1"
     local rom_jar="$ROM_FOLDER/system/system/framework/$jar_name.jar"
     local work_dir="$ROM_FOLDER/system/system/framework/${jar_name}edit"
-    local patches_dir="$PROJECT_ROOT/patches/$jar_name.jar"
+    local patches_dir="$PROJECT_ROOT/resources/patches/$jar_name.jar"
+    
+    # Skip if JAR doesn't exist
+    if [ ! -f "$rom_jar" ]; then
+        echo -e "${YELLOW}⚠️ Skipping $jar_name.jar - not found in ROM${NC}"
+        return 0
+    fi
+    
+    # Skip if no patches directory
+    if [ ! -d "$patches_dir" ]; then
+        echo -e "${YELLOW}⚠️ Skipping $jar_name.jar - no patches directory${NC}"
+        return 0
+    fi
     
     echo -e "\n${GREEN}===== Processing $jar_name.jar =====${NC}"
     
     # Clean working directory
+    echo -e "${YELLOW}[*] Cleaning working directory...${NC}"
     rm -rf "$work_dir"
-    mkdir -p "$work_dir"
     
     # Decompile JAR
     echo -e "${GREEN}[+] Decompiling $jar_name.jar...${NC}"
     java -jar "$APKTOOL_JAR" d \
         -api 34 \
+        -f \  # Force overwrite existing directory
         -b \
         -o "$work_dir" \
         "$rom_jar" || {
@@ -169,20 +185,26 @@ process_jar() {
     # Cleanup
     rm -rf "$work_dir"
     echo -e "${GREEN}[✓] $jar_name.jar successfully patched!${NC}"
+    return 0
 }
 
 # Main process
 main() {
     verify_paths
     
+    local success=0
+    local total=${#JARS[@]}
+    
     for jar in "${JARS[@]}"; do
-        process_jar "$jar" || {
-            echo -e "${RED}❌ Aborting due to errors in $jar.jar processing${NC}"
-            exit 1
-        }
+        process_jar "$jar" && ((success++)) || true
     done
 
-    echo -e "\n${GREEN}[✓] All JARs successfully patched!${NC}"
+    if [[ $success -gt 0 ]]; then
+        echo -e "\n${GREEN}[✓] $success/$total JARs successfully patched!${NC}"
+    else
+        echo -e "\n${RED}❌ No JARs were patched!${NC}"
+        exit 1
+    fi
 }
 
 # Execute
