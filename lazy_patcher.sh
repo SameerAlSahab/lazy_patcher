@@ -5,8 +5,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Path Configuration
-PROJECT_ROOT="$SCRIPT_ROOT" 
-APKTOOL_JAR="$SCRIPT_ROOT/external/apktool/apktool.jar"
+PROJECT_ROOT="$SCRIPT_DIR" 
+APKTOOL_JAR="$SCRIPT_DIR/external/apktool/apktool.jar"
 ROM_FOLDER="$1" 
 
 # Validate ROM directory
