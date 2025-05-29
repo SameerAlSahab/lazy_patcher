@@ -1,0 +1,31 @@
+From 07e273c2c1d268ec1993d51c5d707868ff594f5c Mon Sep 17 00:00:00 2001
+From: Ishihara0xn <166594898+SameerAlSahab@users.noreply.github.com>
+Date: Thu, 29 May 2025 18:10:13 +0600
+Subject: [PATCH] Create PATCH HFR
+
+---
+ .../samsung/android/hardware/display/RefreshRateConfig.smali  | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/framework.jar/smali_classes6/com/samsung/android/hardware/display/RefreshRateConfig.smali b/framework.jar/smali_classes6/com/samsung/android/hardware/display/RefreshRateConfig.smali
+index c847d53..c531081 100644
+--- a/framework.jar/smali_classes6/com/samsung/android/hardware/display/RefreshRateConfig.smali
++++ b/framework.jar/smali_classes6/com/samsung/android/hardware/display/RefreshRateConfig.smali
+@@ -451,7 +451,7 @@
+ 
+     move-result-object v0
+ 
+-    const-string v1, "3"
++    const-string v1, "2"
+ 
+     invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+ 
+@@ -737,7 +737,7 @@
+ 
+     invoke-direct {v0, v3, v4, v1, v2}, Lcom/samsung/android/hardware/display/RefreshRateConfig$BrightnessThreshold;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+ 
+-    const-string v1, "3"
++    const-string v1, "2"
+ 
+     const-string v2, "60,48,96,120"
+ 
