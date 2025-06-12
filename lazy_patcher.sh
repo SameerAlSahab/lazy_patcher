@@ -4,7 +4,7 @@
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APKTOOL_JAR="${SCRIPT_DIR}/external/apktool/apktool.jar"
-JARS=("framework" "services")
+JARS=("framework" "services" "samsungkeystoreutils" "knoxsdk")
 
 # Color codes
 RED='\033[0;31m'
