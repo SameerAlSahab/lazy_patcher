@@ -9,8 +9,12 @@ on:
       services_url:
         description: 'URL to services.jar (optional)'
         required: false
-
-        
+      knoxsdk_url:
+        description: 'URL to knoxsdk.jar (optional)'
+        required: false
+      keystoreutils_url:
+        description: 'URL to samsungkeystoreutils.jar (optional)'
+        required: false
 
 env:
   ARTIFACT_DIR: patched_jars_${{ github.run_id }}
@@ -26,12 +30,11 @@ jobs:
       - name: Check inputs
         id: check-input
         run: |
-          if [[ -z "${{ inputs.framework_url }}" && -z "${{ inputs.services_url }}" ]]; then
+          if [[ -z "${{ inputs.framework_url }}" && -z "${{ inputs.services_url }}" && -z "${{ inputs.knoxsdk_url }}" && -z "${{ inputs.keystoreutils_url }}" ]]; then
             echo "::error::At least one JAR URL must be provided"
             echo "valid=false" >> $GITHUB_OUTPUT
           else
             echo "valid=true" >> $GITHUB_OUTPUT
-          fi
 
   patch:
     name: Patch JARs
@@ -41,7 +44,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Set up environment
         run: |
           sudo apt-get update
@@ -59,7 +62,6 @@ jobs:
           echo "Downloading framework.jar..."
           wget -q --show-progress "${{ inputs.framework_url }}" -O rom/system/system/framework/framework.jar
           echo "Downloaded $(ls -lh rom/system/system/framework/framework.jar)"
-          
 
       - name: Download services.jar
         if: ${{ inputs.services_url != '' }}
@@ -67,6 +69,20 @@ jobs:
           echo "Downloading services.jar..."
           wget -q --show-progress "${{ inputs.services_url }}" -O rom/system/system/framework/services.jar
           echo "Downloaded $(ls -lh rom/system/system/framework/services.jar)"
+
+      - name: Download knoxsdk.jar
+        if: ${{ inputs.knoxsdk_url != '' }}
+        run: |
+          echo "Downloading knoxsdk.jar..."
+          wget -q --show-progress "${{ inputs.knoxsdk_url }}" -O rom/system/system/framework/knoxsdk.jar
+          echo "Downloaded $(ls -lh rom/system/system/framework/knoxsdk.jar)"
+
+      - name: Download samsungkeystoreutils.jar
+        if: ${{ inputs.keystoreutils_url != '' }}
+        run: |
+          echo "Downloading samsungkeystoreutils.jar..."
+          wget -q --show-progress "${{ inputs.keystoreutils_url }}" -O rom/system/system/framework/samsungkeystoreutils.jar
+          echo "Downloaded $(ls -lh rom/system/system/framework/samsungkeystoreutils.jar)"
 
       - name: Make patcher executable
         run: chmod +x lazy_patcher.sh
@@ -80,14 +96,12 @@ jobs:
         run: |
           cd "${{ env.ARTIFACT_DIR }}"
           
-          if [[ -f ../rom/system/system/framework/framework.jar ]]; then
-            cp ../rom/system/system/framework/framework.jar "framework_patched_${{ env.BUILD_DATE }}.jar"
-          fi
-          
-          if [[ -f ../rom/system/system/framework/services.jar ]]; then
-            cp ../rom/system/system/framework/services.jar "services_patched_${{ env.BUILD_DATE }}.jar"
-          fi
-          
+          for jar in framework services knoxsdk samsungkeystoreutils; do
+            if [[ -f ../rom/system/system/framework/${jar}.jar ]]; then
+              cp ../rom/system/system/framework/${jar}.jar "${jar}_patched_${{ env.BUILD_DATE }}.jar"
+            fi
+          done
+
           echo "Generated artifacts:"
           ls -lh
 
