@@ -1,0 +1,27 @@
+From 455532dae4396dc7ff4394ba765b6dbad00c1644 Mon Sep 17 00:00:00 2001
+From: Ocin4ever <85343782+Ocin4ever@users.noreply.github.com>
+Date: Sat, 8 Mar 2025 16:29:54 +0100
+Subject: [PATCH] Bypass-ICD-verification
+
+Co-Authored-By: Salvo Giangreco <giangrecosalvo9@gmail.com>
+---
+ .../android/security/keystore/AttestParameterSpec.smali       | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/smali/com/samsung/android/security/keystore/AttestParameterSpec.smali b/smali/com/samsung/android/security/keystore/AttestParameterSpec.smali
+index af66a8c8..29168fa9 100644
+--- a/smali/com/samsung/android/security/keystore/AttestParameterSpec.smali
++++ b/smali/com/samsung/android/security/keystore/AttestParameterSpec.smali
+@@ -211,7 +211,7 @@
+ .method public isVerifiableIntegrity()Z
+     .locals 1
+ 
+-    iget-boolean v0, p0, Lcom/samsung/android/security/keystore/AttestParameterSpec;->mVerifiableIntegrity:Z
+-
++    const/4 v0, 0x1
++    
+     return v0
+ .end method
+-- 
+2.43.0
+
